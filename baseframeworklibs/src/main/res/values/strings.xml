@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">baseframeworklibs</string>
+    <string name="app_version">1.0</string>
 </resources>

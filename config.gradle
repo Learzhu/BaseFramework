@@ -6,17 +6,17 @@ ext {
                maven         : 'com.github.dcendents.android-maven',
                bintray       : 'com.jfrog.bintray']
 
-    android = [applicationId          : 'com.yanzhenjie.andserver.sample',
-               compileSdkVersion      : 27,
-               buildToolsVersion      : '27.0.3',
+    android = [applicationId          : 'com.learzhu.baseframework',
+               compileSdkVersion      : 28,
+               buildToolsVersion      : '28.0.3',
 
-               libraryMinSdkVersion   : 9,
+               libraryMinSdkVersion   : 15,
                libraryTargetSdkVersion: 27,
-               sampleMinSdkVersion    : 14,
-               sampleTargetSdkVersion : 22,
 
-               versionCode            : 21,
-               versionName            : '2.0.4',]
+               minSdkVersion          : 15,
+               targetSdkVersion       : 26,
+               versionCode            : 1,
+               versionName            : '1.0.0',]
 
     bintray = [version       : '2.0.4',
                group         : 'com.yanzhenjie.andserver',
