@@ -103,7 +103,7 @@ public abstract class BaseBottomTabActivity extends BaseActivity {
         if (currentPosition == position) {
             if (needReload) {
                 if (fragments[position] != null && fragments[position].isAdded()) {
-                    FragmentTransaction ft = fragmentManager.beginTransaction();
+                    FragmentTransaction ft = mFragmentManager.beginTransaction();
                     ft.remove(fragments[position]).commit();
                     fragments[position] = null;
                 }
@@ -123,7 +123,7 @@ public abstract class BaseBottomTabActivity extends BaseActivity {
         }
 
         //全局的fragmentTransaction因为already committed 崩溃
-        FragmentTransaction ft = fragmentManager.beginTransaction();
+        FragmentTransaction ft = mFragmentManager.beginTransaction();
         ft.hide(fragments[currentPosition]);
         if (fragments[position].isAdded() == false) {
             ft.add(getFragmentContainerResId(), fragments[position]);

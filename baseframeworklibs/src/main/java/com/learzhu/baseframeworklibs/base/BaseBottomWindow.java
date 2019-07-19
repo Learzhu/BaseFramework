@@ -43,7 +43,7 @@ public abstract class BaseBottomWindow extends BaseActivity {
 
         vBaseBottomWindowRoot = findView(R.id.vBaseBottomWindowRoot);
 
-        vBaseBottomWindowRoot.startAnimation(AnimationUtils.loadAnimation(context, R.anim.bottom_window_enter));
+        vBaseBottomWindowRoot.startAnimation(AnimationUtils.loadAnimation(mContext, R.anim.bottom_window_enter));
     }
 
     //UI显示区(操作UI，但不存在数据获取或处理代码，也不存在事件监听代码)>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -111,7 +111,7 @@ public abstract class BaseBottomWindow extends BaseActivity {
         }
         isExit = true;
 
-        vBaseBottomWindowRoot.startAnimation(AnimationUtils.loadAnimation(context, R.anim.bottom_window_exit));
+        vBaseBottomWindowRoot.startAnimation(AnimationUtils.loadAnimation(mContext, R.anim.bottom_window_exit));
         vBaseBottomWindowRoot.setVisibility(View.GONE);
 
         exitHandler.sendEmptyMessageDelayed(0, 200);

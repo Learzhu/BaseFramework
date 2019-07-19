@@ -25,19 +25,14 @@ public abstract class LazyLoadFragment extends BaseFragment {
     @Override
     public void setUserVisibleHint(boolean isVisibleToUser) {
         super.setUserVisibleHint(isVisibleToUser);
-
         this.isVisibleToUser = isVisibleToUser;
-
         tryLoadData();
     }
-
 
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-
         isViewCreated = true;
-
         tryLoadData();
     }
 

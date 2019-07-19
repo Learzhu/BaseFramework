@@ -37,6 +37,8 @@ import java.util.List;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
+import butterknife.ButterKnife;
+import butterknife.Unbinder;
 
 
 /**
@@ -48,16 +50,28 @@ import androidx.fragment.app.FragmentManager;
  * @update UserName 2019-03-26 16:57
  * @updateDes
  * @des 通过继承可获取或使用 里面创建的 组件 和 方法onFling内控制左右滑动手势操作范围，可自定义
- * @see #context
- * @see #view
- * @see #fragmentManager
+ * @see #mContext
+ * @see #mView
+ * @see #mFragmentManager
  * @see #setContentView
  * @see #runUiThread
  * @see #runThread
  * @see #onDestroy
  */
-public abstract class BaseActivity extends AppCompatActivity implements IActivityIUiInit, OnGestureListener {
+public abstract class BaseActivity<V, T extends BasePresenter<V>> extends AppCompatActivity implements IActivityIUiInit, OnGestureListener {
     private static final String TAG = "BaseActivity";
+    /**
+     * butterknife
+     */
+    protected Unbinder mUnbinder;
+
+//    protected abstract @LayoutRes
+//    int initLayoutId();
+
+    /**
+     * Presenter对象
+     */
+    protected T mPresenter;
 
     @Override
     public Activity getActivity() {
@@ -69,13 +83,13 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
      *
      * @warn 不能在子类中创建
      */
-    protected BaseActivity context = null;
+    protected BaseActivity mContext = null;
     /**
      * 该Activity的界面，即contentView
      *
      * @warn 不能在子类中创建
      */
-    protected View view = null;
+    protected View mView = null;
     /**
      * 布局解释器
      *
@@ -87,7 +101,7 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
      *
      * @warn 不能在子类中创建
      */
-    protected FragmentManager fragmentManager = null;
+    protected FragmentManager mFragmentManager = null;
 
     private boolean isAlive = false;
     private boolean isRunning = false;
@@ -96,19 +110,28 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        context = (BaseActivity) getActivity();
+
+        mContext = (BaseActivity) getActivity();
         isAlive = true;
-        fragmentManager = getSupportFragmentManager();
+        mFragmentManager = getSupportFragmentManager();
         inflater = getLayoutInflater();
         threadNameList = new ArrayList<String>();
-        BaseBroadcastReceiver.register(context, receiver, ACTION_EXIT_APP);
+        BaseBroadcastReceiver.register(mContext, mExitAppReceiver, ACTION_EXIT_APP);
+
+        //创建Presenter
+        mPresenter = createPresenter();
+        mPresenter.attachView((V) this);
 
         //功能归类分区方法，必须调用<<<<<<<<<<
         setContentView(getResLayoutId());
+        mUnbinder = ButterKnife.bind(this);
+
         initView();
         initData();
         initEvent();
     }
+
+    protected abstract T createPresenter();
 
     /**
      * 默认标题TextView，layout.xml中用@id/tvBaseTitle绑定。子Activity内调用autoSetTitle方法 会优先使用INTENT_TITLE
@@ -159,7 +182,7 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
         gestureDetector = new GestureDetector(this, this);//初始化手势监听类
 
         try { //以防万一中间的值为 null 导致 throw NullPointerException
-            view = ((ViewGroup) getWindow().getDecorView().findViewById(android.R.id.content)).getChildAt(0);
+            mView = ((ViewGroup) getWindow().getDecorView().findViewById(android.R.id.content)).getChildAt(0);
         } catch (Exception e) {
             Log.e(TAG, "setContentView  try {" +
                     "\nview = ((ViewGroup) getWindow().getDecorView().findViewById(android.R.id.content)).getChildAt(0);" +
@@ -261,7 +284,7 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
      */
     public void showProgressDialog(int stringResId) {
         try {
-            showProgressDialog(null, context.getResources().getString(stringResId));
+            showProgressDialog(null, mContext.getResources().getString(stringResId));
         } catch (Exception e) {
             Log.e(TAG, "showProgressDialog  showProgressDialog(null, context.getResources().getString(stringResId));");
         }
@@ -287,7 +310,7 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
             @Override
             public void run() {
                 if (progressDialog == null) {
-                    progressDialog = new ProgressDialog(context);
+                    progressDialog = new ProgressDialog(mContext);
                 }
                 if (progressDialog.isShowing()) {
                     progressDialog.dismiss();
@@ -386,7 +409,6 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
     }
     //启动新Activity方法>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-
     //show short toast 方法<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     /**
@@ -396,7 +418,7 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
      */
     public void showShortToast(int stringResId) {
         try {
-            showShortToast(context.getResources().getString(stringResId));
+            showShortToast(mContext.getResources().getString(stringResId));
         } catch (Exception e) {
             Log.e(TAG, "showShortToast  context.getResources().getString(resId)" +
                     " >>  catch (Exception e) {" + e.getMessage());
@@ -425,7 +447,7 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
                 if (isForceDismissProgressDialog) {
                     dismissProgressDialog();
                 }
-                Toast.makeText(context, "" + string, Toast.LENGTH_SHORT).show();
+                Toast.makeText(mContext, "" + string, Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -520,7 +542,7 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
 
     @Override
     public final boolean isAlive() {
-        return isAlive && context != null;// & ! isFinishing();导致finish，onDestroy内runUiThread不可用
+        return isAlive && mContext != null;// & ! isFinishing();导致finish，onDestroy内runUiThread不可用
     }
 
     @Override
@@ -580,11 +602,11 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
     protected void onDestroy() {
         Log.d(TAG, "\n onDestroy <<<<<<<<<<<<<<<<<<<<<<<");
         dismissProgressDialog();
-        BaseBroadcastReceiver.unregister(context, receiver);
+        BaseBroadcastReceiver.unregister(mContext, mExitAppReceiver);
         ThreadManager.getInstance().destroyThread(threadNameList);
-        if (view != null) {
+        if (mView != null) {
             try {
-                view.destroyDrawingCache();
+                mView.destroyDrawingCache();
             } catch (Exception e) {
                 Log.w(TAG, "onDestroy  try { view.destroyDrawingCache();" +
                         " >> } catch (Exception e) {\n" + e.getMessage());
@@ -593,24 +615,26 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
 
         isAlive = false;
         isRunning = false;
+        mUnbinder.unbind();
         super.onDestroy();
-
         inflater = null;
-        view = null;
+        mView = null;
         tvBaseTitle = null;
 
-        fragmentManager = null;
+        mFragmentManager = null;
         progressDialog = null;
         threadNameList = null;
 
         intent = null;
-        context = null;
-
+        mContext = null;
+        if (mPresenter.isViewAttached()) {
+            mPresenter.detachView();
+        }
         Log.d(TAG, "onDestroy >>>>>>>>>>>>>>>>>>>>>>>>\n");
     }
 
-
-    private BroadcastReceiver receiver = new BroadcastReceiver() {
+    //======================= 以下封装退出的广播===================
+    private BroadcastReceiver mExitAppReceiver = new BroadcastReceiver() {
 
         public void onReceive(Context context, Intent intent) {
             String action = intent == null ? null : intent.getAction();
@@ -625,9 +649,7 @@ public abstract class BaseActivity extends AppCompatActivity implements IActivit
         }
     };
 
-
     //手机返回键和菜单键实现同点击标题栏左右按钮效果<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
     private boolean isOnKeyLongPress = false;
 
     @Override

@@ -1,5 +1,6 @@
 package com.learzhu.baseframeworklibs.base;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -14,6 +15,8 @@ import com.learzhu.baseframeworklibs.utils.LogUtil;
 
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import butterknife.ButterKnife;
+import butterknife.Unbinder;
 
 /**
  * BaseFragment.java是BaseFramework的基础Fragment类。
@@ -32,7 +35,7 @@ import androidx.fragment.app.Fragment;
  * * @see #runThread
  * * @see #onDestroy
  */
-public abstract class BaseFragment extends Fragment implements IFragmentIUiInit {
+public abstract class BaseFragment<V, T extends BasePresenter<V>> extends Fragment implements IFragmentIUiInit {
     private static final String TAG = "BaseFragment";
 
     /**
@@ -40,20 +43,20 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
      *
      * @warn 不能在子类中创建
      */
-    protected BaseActivity context = null;
+    protected BaseActivity mContext = null;
     /**
      * 该Fragment全局视图
      *
      * @must 非abstract子类的onCreateView中return view;
      * @warn 不能在子类中创建
      */
-    protected View view = null;
+    protected View mRootView = null;
     /**
      * 布局解释器
      *
      * @warn 不能在子类中创建
      */
-    protected LayoutInflater inflater = null;
+    protected LayoutInflater mInflater = null;
     /**
      * 添加这个Fragment视图的布局
      *
@@ -66,18 +69,59 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
     private boolean isRunning = false;
 
     /**
+     * Presenter对象
+     */
+    protected T mPresenter;
+
+    /**
+     * ButterKnife解绑
+     */
+    protected Unbinder mUnbinder;
+
+    /**
+     * 设置Fragment的title用于在Fragment切换的时候使用
+     */
+    private String fragmentTitle;
+
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+    }
+
+    /**
      * @must 在非abstract子类的onCreateView中super.onCreateView且return view;
      */
     @Override
     @Nullable
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        context = (BaseActivity) getActivity();
+        mContext = (BaseActivity) getActivity();
         isAlive = true;
-
-        this.inflater = inflater;
+        this.mInflater = inflater;
         this.container = container;
 
-        return view;
+        LogUtil.e(TAG, "onCreateView()  " + mRootView + " mUnbinder " + mUnbinder + "\n" +
+                " mContext: " + mContext + " getContext: " + getContext() + "\n" + "this: " + this);
+        //创建Presenter
+        mPresenter = createPresenter();
+        mPresenter.attachView((V) this);
+        if (mRootView == null && mContext != null) {
+            // rootView=inflater.inflate(R.layout.tab_fragment, null);
+            mRootView = inflater.inflate(getResLayoutId(), container, false);
+            mUnbinder = ButterKnife.bind(this, mRootView);
+            initView();
+            initEvent();
+            initData();
+        } else if (mRootView != null) {
+            //缓存的rootView需要判断是否已经被加过parent， 如果有parent需要从parent删除，要不然会发生这个rootview已经有parent的错误。
+            ViewGroup parent = (ViewGroup) mRootView.getParent();
+            if (parent != null) {
+                parent.removeView(mRootView);
+            }
+            // TODO: 2017/10/10 暂时为了避免replace 替换崩溃的方式
+            mUnbinder = ButterKnife.bind(this, mRootView);
+            LogUtil.e(TAG, "onCreateView: " + mRootView + " mUnbinder" + mUnbinder);
+        }
+        return mRootView;
     }
 
     /**
@@ -88,7 +132,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
      * @use 在onCreateView后调用
      */
     public void setContentView(int layoutResID) {
-        setContentView(inflater.inflate(layoutResID, container, false));
+        setContentView(mInflater.inflate(layoutResID, container, false));
     }
 
     /**
@@ -111,9 +155,8 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
      * @use 在onCreateView后调用
      */
     public void setContentView(View v, ViewGroup.LayoutParams params) {
-        view = v;
+        mRootView = v;
     }
-
 
     /**
      * 可用于 打开activity与fragment，fragment与fragment之间的通讯（传值）等
@@ -132,7 +175,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
      */
     @SuppressWarnings("unchecked")
     public <V extends View> V findView(int id) {
-        return (V) view.findViewById(id);
+        return (V) mRootView.findViewById(id);
     }
 
     /**
@@ -172,7 +215,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
 
 
     public Intent getIntent() {
-        return context.getIntent();
+        return mContext.getIntent();
     }
 
     //运行线程<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -187,7 +230,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
             LogUtil.w(TAG, "runUiThread  isAlive() == false >> return;");
             return;
         }
-        context.runUiThread(action);
+        mContext.runUiThread(action);
     }
 
     /**
@@ -202,11 +245,10 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
             LogUtil.w(TAG, "runThread  isAlive() == false >> return null;");
             return null;
         }
-        return context.runThread(name + hashCode(), runnable);//name, runnable);同一Activity出现多个同名Fragment可能会出错
+        return mContext.runThread(name + hashCode(), runnable);//name, runnable);同一Activity出现多个同名Fragment可能会出错
     }
 
     //运行线程>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
 
     //进度弹窗<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -220,7 +262,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
             LogUtil.w(TAG, "showProgressDialog  isAlive() == false >> return;");
             return;
         }
-        context.showProgressDialog(context.getResources().getString(stringResId));
+        mContext.showProgressDialog(mContext.getResources().getString(stringResId));
     }
 
     /**
@@ -233,7 +275,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
             LogUtil.w(TAG, "showProgressDialog  isAlive() == false >> return;");
             return;
         }
-        context.showProgressDialog(dialogMessage);
+        mContext.showProgressDialog(dialogMessage);
     }
 
     /**
@@ -247,7 +289,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
             LogUtil.w(TAG, "showProgressDialog  isAlive() == false >> return;");
             return;
         }
-        context.showProgressDialog(dialogTitle, dialogMessage);
+        mContext.showProgressDialog(dialogTitle, dialogMessage);
     }
 
     /**
@@ -258,7 +300,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
             LogUtil.w(TAG, "dismissProgressDialog  isAlive() == false >> return;");
             return;
         }
-        context.dismissProgressDialog();
+        mContext.dismissProgressDialog();
     }
     //进度弹窗>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -293,6 +335,8 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
         toActivity(intent, requestCode, true);
     }
 
+    protected abstract T createPresenter();
+
     /**
      * 打开新的Activity
      *
@@ -315,15 +359,14 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
                     startActivityForResult(intent, requestCode);
                 }
                 if (showAnimation) {
-                    context.overridePendingTransition(R.anim.right_push_in, R.anim.hold);
+                    mContext.overridePendingTransition(R.anim.right_push_in, R.anim.hold);
                 } else {
-                    context.overridePendingTransition(R.anim.null_anim, R.anim.null_anim);
+                    mContext.overridePendingTransition(R.anim.null_anim, R.anim.null_anim);
                 }
             }
         });
     }
     //启动Activity>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
     //show short toast<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     /**
@@ -336,7 +379,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
             LogUtil.w(TAG, "showProgressDialog  isAlive() == false >> return;");
             return;
         }
-        context.showShortToast(stringResId);
+        mContext.showShortToast(stringResId);
     }
 
     /**
@@ -349,7 +392,7 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
             LogUtil.w(TAG, "showProgressDialog  isAlive() == false >> return;");
             return;
         }
-        context.showShortToast(string);
+        mContext.showShortToast(string);
     }
 
     /**
@@ -363,14 +406,14 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
             LogUtil.w(TAG, "showProgressDialog  isAlive() == false >> return;");
             return;
         }
-        context.showShortToast(string, isForceDismissProgressDialog);
+        mContext.showShortToast(string, isForceDismissProgressDialog);
     }
     //show short toast>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
     @Override
     public final boolean isAlive() {
-        return isAlive && context != null;// & ! isRemoving();导致finish，onDestroy内runUiThread不可用
+        return isAlive && mContext != null;// & ! isRemoving();导致finish，onDestroy内runUiThread不可用
     }
 
     @Override
@@ -394,6 +437,32 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
         LogUtil.d(TAG, "onPause >>>>>>>>>>>>>>>>>>>>>>>>\n");
     }
 
+    //基地址发生改变之后 重新创建Presenter
+    public void reCreatePresenter() {
+        mPresenter = createPresenter();
+        mPresenter.attachView((V) this);
+    }
+
+    @Override
+    public void onDestroyView() {
+        //避免在Fragment生命周期结束的时候接受到当前的图片出现异常
+        //避免 activity的Destory的空指针
+        //当 Glide.with() 中传入的 Activity 或 Fragment 实例销毁时，Glide 会自动取消加载并回收资源。
+//        if (mRootView != null) {
+////            Glide.clear(mRootView);
+//            Glide.with(mContext).clear(mRootView);
+//        }
+        super.onDestroyView();
+        LogUtil.e(TAG, "onDestroyView: " + mRootView + " mUnbinder " + mUnbinder + "\n" +
+                " mContext: " + mContext + " getContext: " + getContext() + "\n" + "this: " + this);
+        if (mUnbinder != null) {
+            mUnbinder.unbind();
+        }
+        if (mPresenter != null && mPresenter.isViewAttached()) {
+            mPresenter.detachView();
+        }
+    }
+
     /**
      * 销毁并回收内存
      *
@@ -403,9 +472,9 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
     public void onDestroy() {
         LogUtil.d(TAG, "\n onDestroy <<<<<<<<<<<<<<<<<<<<<<<");
         dismissProgressDialog();
-        if (view != null) {
+        if (mRootView != null) {
             try {
-                view.destroyDrawingCache();
+                mRootView.destroyDrawingCache();
             } catch (Exception e) {
                 LogUtil.w(TAG, "onDestroy  try { view.destroyDrawingCache();" +
                         " >> } catch (Exception e) {\n" + e.getMessage());
@@ -415,16 +484,12 @@ public abstract class BaseFragment extends Fragment implements IFragmentIUiInit 
         isAlive = false;
         isRunning = false;
         super.onDestroy();
-
-        view = null;
-        inflater = null;
+        mRootView = null;
+        mInflater = null;
         container = null;
-
         intent = null;
         argument = null;
-
-        context = null;
-
+        mContext = null;
         LogUtil.d(TAG, "onDestroy >>>>>>>>>>>>>>>>>>>>>>>>\n");
     }
 }
