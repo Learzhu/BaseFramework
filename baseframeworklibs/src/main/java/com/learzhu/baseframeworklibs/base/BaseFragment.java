@@ -86,6 +86,7 @@ public abstract class BaseFragment<V, T extends BasePresenter<V>> extends Fragme
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
+        mContext = (BaseActivity) context;
     }
 
     /**
@@ -94,7 +95,6 @@ public abstract class BaseFragment<V, T extends BasePresenter<V>> extends Fragme
     @Override
     @Nullable
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        mContext = (BaseActivity) getActivity();
         isAlive = true;
         this.mInflater = inflater;
         this.container = container;
