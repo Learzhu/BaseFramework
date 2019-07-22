@@ -5,48 +5,38 @@ import android.util.Log;
 import android.widget.TextView;
 
 import com.learzhu.baseframework.R;
-import com.learzhu.baseframework.lazyload.activity.TabActivity;
 import com.learzhu.baseframeworklibs.base.BasePresenter;
 import com.learzhu.baseframeworklibs.base.LazyLoadFragment;
 
 import butterknife.BindView;
-import butterknife.OnClick;
 
 /**
- * FirstLevelAFragment.java是液总汇的类。
+ * TabFragment.java是BaseFramework的Tab切换的Fragment类。
  *
  * @author Learzhu
- * @version 2.0.0 2019-07-19 15:02
- * @update Learzhu 2019-07-19 15:02
+ * @version 1.0.0 2019-07-22 11:55
+ * @use
+ * @update UserName 2019-07-22 11:55
  * @updateDes
- * @include {@link }
- * @used {@link }
  */
-public class FirstLevelCFragment extends LazyLoadFragment {
+public class TabFragment extends LazyLoadFragment {
     private static final String DATA = "data";
-    private String mData;
-
     @BindView(R.id.tv_data)
     TextView dataTv;
 
-    public static FirstLevelCFragment newInstance(String data) {
-        FirstLevelCFragment fragment = new FirstLevelCFragment();
+    private String data;
+
+    public static TabFragment newInstance(String data) {
         Bundle args = new Bundle();
+        TabFragment fragment = new TabFragment();
         args.putString(DATA, data);
         fragment.setArguments(args);
         return fragment;
     }
 
-    @OnClick(R.id.tv_data)
-    public void start() {
-        if ("1-3".equals(mData)) {
-            TabActivity.actionStart(mContext);
-        }
-    }
-
     @Override
     protected void loadData() {
-        Log.e("load", "1-3");
+        Log.e("load", data);
     }
 
     @Override
@@ -62,14 +52,15 @@ public class FirstLevelCFragment extends LazyLoadFragment {
 
     @Override
     public void initView() {
+
     }
 
     @Override
     public void initData() {
         if (getArguments() != null) {
-            mData = getArguments().getString(DATA);
+            data = getArguments().getString(DATA);
         }
-        dataTv.setText("content:" + mData + "Open FragmentManager Test");
+        dataTv.setText("content:" + data);
     }
 
     @Override
@@ -77,7 +68,7 @@ public class FirstLevelCFragment extends LazyLoadFragment {
     }
 
     @Override
-    protected boolean isNeedReload() {
-        return true;
+    public void tryLoadData() {
+        super.tryLoadData();
     }
 }
